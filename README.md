@@ -84,15 +84,6 @@ Hybrid AI System:
 - Saves time compared to searching notes
 - Acts as a smart study assistant
 
----
-
-## 🛠️ How to Run
-
-### 1. Clone Repository
-```bash
-git clone https://github.com/yourusername/JARK_GPT.git
-cd JARK_GPT
-
 👨‍💻 Developer
 -Amrit Patel
 Creative AI Enthusiast | Technical Writer | Digital Innovator | Tech Student |
