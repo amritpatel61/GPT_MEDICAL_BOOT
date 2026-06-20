@@ -1,0 +1,146 @@
+from flask import Flask, render_template, request, jsonify
+import os
+from dotenv import load_dotenv
+from openai import OpenAI
+
+# Load API key
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+app = Flask(__name__)
+
+# ---------- CUSTOM QUESTION BANK (with source) ----------
+QUESTION_BANK = {
+    "dna": {
+        "answer": "DNA (Deoxyribonucleic Acid) is the genetic material that carries hereditary information in living organisms.",
+        "source": "JARK GPT"
+    },
+    "photosynthesis": {
+        "answer": "Photosynthesis is the process by which green plants produce food using sunlight, water, and carbon dioxide.",
+        "source": "JARK GPT"
+    },
+    "newton first law": {
+        "answer": "An object remains at rest or in uniform motion unless acted upon by an external force.",
+        "source": "JARK GPT"
+    },
+    "osmosis": {
+        "answer": "Osmosis is the movement of water molecules from a region of low solute concentration to high solute concentration through a semi-permeable membrane.",
+        "source": "JARK GPT"
+    },
+    "cell": {
+        "answer": "A cell is the basic structural and functional unit of all living organisms.",
+        "source": "JARK GPT"
+    }
+}
+
+# ---------- SCIENCE KEYWORDS ----------
+SCIENCE_KEYWORDS = [
+    "biology", "cell", "dna", "rna", "physics", "force", "energy",
+    "chemistry", "atom", "molecule", "reaction", "law", "theory"
+]
+
+# ---------- INTENT DETECTION ----------
+INTENT_KEYWORDS = {
+    "definition": ["define", "what is", "meaning of"],
+    "explanation": ["explain", "describe", "details", "explanation"]
+}
+
+# ---------- JARKTECH SPECIAL RESPONSES ----------
+JARKTECH_QUESTIONS = {
+    "who are you": "I am JARKTECH's Medical Assistant, here to help you in your studies. Powered by JARKTECH.",
+    "what is jarktech": """JARK TECH — Empowering Dreams Through Digital Innovation
+JARK Tech is a youth-led digital innovation startup committed to transforming ideas into impactful digital solutions. 
+It helps students, startups, and local businesses by providing digital solutions, analyzing market trends, and solving real-world problems through technology.
+Founder & CEO: Mr. Amrit Patel""",
+    "which model do you use": "This is powered by the JARKTECH model.",
+    "who made you": "jarktech made me.",
+    "who is your founder": "Amrit Patel",
+    "about api": "This system uses JARKTECH's AI-powered backend.",
+    "who is jark tech": """JARK TECH — Empowering Dreams Through Digital Innovation
+JARK Tech converts ideas into reality, empowers students, and helps local businesses grow through technology."""
+}
+
+def get_intent(question):
+    question = question.lower()
+    for intent, keywords in INTENT_KEYWORDS.items():
+        if any(k in question for k in keywords):
+            return intent
+    return "general"
+
+def is_science_question(text):
+    text = text.lower()
+    return any(word in text for word in SCIENCE_KEYWORDS)
+
+def check_jarktech_question(text):
+    text = text.lower()
+    for key in JARKTECH_QUESTIONS:
+        if key in text:
+            return JARKTECH_QUESTIONS[key]
+    return None
+
+# ---------- ROUTES ----------
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/ask", methods=["POST"])
+def ask():
+    user_question = request.json.get("question", "").strip()
+    if not user_question:
+        return jsonify({"answer": "Please ask a question.", "source": ""})
+
+    # 1️⃣ Check if user asks about JARKTECH / company info
+    jark_response = check_jarktech_question(user_question)
+    if jark_response:
+        return jsonify({"answer": jark_response, "source": "JARKTECH"})
+
+    key = user_question.lower()
+
+    # 2️⃣ Check CUSTOM QUESTION BANK
+    for q in QUESTION_BANK:
+        if q in key:
+            return jsonify({
+                "answer": QUESTION_BANK[q]["answer"],
+                "source": QUESTION_BANK[q]["source"]
+            })
+
+    # 3️⃣ Intent Detection
+    intent = get_intent(user_question)
+
+    # 4️⃣ AI fallback
+    try:
+        if is_science_question(user_question):
+            system_prompt = f"""
+You are an expert science tutor. 
+Intent of question: {intent}.
+Answer biology, chemistry, physics questions in clear, structured, and detailed form (5-8 lines).
+Provide accurate exam-focused content without unnecessary storytelling.
+"""
+        else:
+            system_prompt = f"""
+You are a precise assistant. 
+Intent of question: {intent}.
+Answer non-science questions in 1–2 short, exact lines only.
+"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_question}
+            ],
+            temperature=0.2,
+            max_tokens=300
+        )
+
+        ai_answer = response.choices[0].message.content.strip()
+        return jsonify({
+            "answer": ai_answer,
+            "source": "Generated by AI"
+        })
+
+    except Exception as e:
+        return jsonify({"answer": "Error connecting to AI. Please try again.", "source": ""})
+
+if __name__ == "__main__":
+    app.run(debug=True)
