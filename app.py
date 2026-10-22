@@ -89,14 +89,14 @@ def ask():
     if not user_question:
         return jsonify({"answer": "Please ask a question.", "source": ""})
 
-    # 1️⃣ Check if user asks about JARKTECH / company info
+    #  Check if user asks about JARKTECH / company info
     jark_response = check_jarktech_question(user_question)
     if jark_response:
         return jsonify({"answer": jark_response, "source": "JARKTECH"})
 
     key = user_question.lower()
 
-    # 2️⃣ Check CUSTOM QUESTION BANK
+    #  Check CUSTOM QUESTION BANK
     for q in QUESTION_BANK:
         if q in key:
             return jsonify({
@@ -104,10 +104,10 @@ def ask():
                 "source": QUESTION_BANK[q]["source"]
             })
 
-    # 3️⃣ Intent Detection
+    #  Intent Detection
     intent = get_intent(user_question)
 
-    # 4️⃣ AI fallback
+    #  AI fallback
     try:
         if is_science_question(user_question):
             system_prompt = f"""
